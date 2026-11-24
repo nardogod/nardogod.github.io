@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="author" content="Leonardo Gomes"/>
+  <meta name="description" content="Write-up for Intigriti Challenge 1126: an HTTP bridge exposed a localhost-only protocol, a signature bypass led to unauthenticated RCE, and adjacent memory held the flag."/>
+  <title>The “internal-only” protocol that wasn’t: HTTP bridge → signature bypass → RCE (Intigriti Challenge 1126)</title>
+  <style>
+    :root {
+      --bg: #0b0b14;
+      --bg-elev: #12121f;
+      --text: #e8e6e1;
+      --muted: #9aa3b2;
+      --dim: #6b7380;
+      --line: #2a2a3d;
+      --accent: #d4a373;
+      --code-bg: #08080f;
+      --code: #9fe8ff;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+      font-size: 1.0625rem;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 42rem;
+      margin: 0 auto;
+      padding: 1.25rem 1.25rem 4rem;
+    }
+    nav {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 0.78rem;
+      letter-spacing: 0.04em;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem 0.55rem;
+      align-items: center;
+      color: var(--dim);
+      margin-bottom: 2.75rem;
+    }
+    nav a {
+      color: var(--muted);
+      text-decoration: none;
+      border-bottom: 1px solid transparent;
+    }
+    nav a:hover { color: var(--text); border-bottom-color: var(--accent); }
+    nav .here { color: var(--text); }
+    nav .sep { color: var(--dim); }
+    .kicker {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 0.85rem;
+    }
+    h1 {
+      font-size: clamp(1.45rem, 4.2vw, 2.05rem);
+      line-height: 1.25;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0 0 0.85rem;
+    }
+    .byline {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 0.88rem;
+      color: var(--muted);
+      margin: 0 0 2.1rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    .byline a { color: var(--muted); }
+    .byline a:hover { color: var(--accent); }
+    article p { margin: 0 0 1.15rem; }
+    article p:last-child { margin-bottom: 0; }
+    strong { font-weight: 700; color: #f3efe8; }
+    em { font-style: italic; }
+    code {
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+      font-size: 0.86em;
+      background: var(--code-bg);
+      color: var(--code);
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      padding: 0.05em 0.35em;
+      word-break: break-word;
+    }
+    ol {
+      margin: 0 0 1.15rem;
+      padding-left: 1.35rem;
+    }
+    ol li { margin: 0 0 0.55rem; padding-left: 0.2rem; }
+    ol li:last-child { margin-bottom: 0; }
+    .signoff {
+      margin-top: 2.25rem;
+      padding-top: 1.4rem;
+      border-top: 1px solid var(--line);
+    }
+    .signoff p { margin: 0 0 0.7rem; }
+    .author {
+      font-style: italic;
+      color: var(--muted);
+    }
+    .author a { color: var(--muted); }
+    .author a:hover { color: var(--accent); }
+    footer {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 0.8rem;
+      color: var(--dim);
+      margin-top: 2.75rem;
+    }
+    footer a { color: var(--muted); text-decoration: none; border-bottom: 1px solid var(--line); }
+    footer a:hover { color: var(--accent); border-bottom-color: var(--accent); }
+    @media (max-width: 540px) {
+      body { font-size: 1rem; }
+      .wrap { padding: 1rem 1rem 3rem; }
+      nav { margin-bottom: 2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <nav>
+      <a href="../">Intigriti</a>
+      <span class="sep">/</span>
+      <span class="here">Challenge 1126</span>
+      <span class="sep">/</span>
+      <a href="../bug-bounty-playbook/">Bug bounty playbook</a>
+    </nav>
+    <article>
+      <p class="kicker">Intigriti Challenge 1126 · Write-up</p>
+      <h1>The “internal-only” protocol that wasn’t: HTTP bridge → signature bypass → RCE (Intigriti Challenge 1126)</h1>
+      <p class="byline">Leonardo Gomes · <a href="https://github.com/nardogod">github.com/nardogod</a></p>
+
+      <p>Intigriti’s November CTF shipped a custom binary protocol that was meant to stay on localhost. An HTTP bridge put it on the public internet.</p>
+
+      <p><strong>Recon.</strong> I pulled the <code>superfastserver</code> binary and reversed it. Two things stood out: a custom protocol bound to <code>127.0.0.1</code>, and a <code>POST /custom_protocol</code> endpoint that opened a socket to that local service, forwarded the request body verbatim, and returned the reply. The port was firewalled from outside. Over HTTPS you still reached it.</p>
+
+      <p><strong>The protocol.</strong> Authenticate, then send frames: code, data, signature, execute. The design ran a signed interpreter over a program, with RSA-2048 over <code>SHA-256(code ‖ data)</code>.</p>
+
+      <p><strong>The bug (two layers).</strong></p>
+      <ol>
+        <li>The bridge turned a localhost-only service into an unauthenticated remote one.</li>
+        <li>The signature covered the <em>first</em> data block. Execution used the <em>last</em>. Same length, second block attacker-controlled — valid signature, wrong code runs.</li>
+      </ol>
+
+      <p>The interpreter’s memory tape sat next to the flag in thread-local storage. Walk the tape, print the flag. Unauthenticated remote code execution plus a memory read, over a single HTTPS POST.</p>
+
+      <p><strong>Impact.</strong> Anyone on the internet could reach the “internal” protocol, bypass the signature check, and read adjacent process memory — including the flag.</p>
+
+      <p><strong>Takeaways.</strong> Relay endpoints without auth or network lock-down are a foothold. Signature checks only cover the bytes you hash. Mapping the HTTP surface against the binary is how you catch services that look internal and aren’t.</p>
+
+      <p><strong>Result.</strong> Accepted as Medium on Intigriti. Unlocked Bronze Finder, Impact Maker, and The Web Slinger. I’m finishing a security specialization at a Brazilian university and working through challenges like this — plus TryHackMe and TCM Security — while looking for junior SOC / GRC / IAM roles.</p>
+
+      <div class="signoff">
+        <p>Thanks Intigriti. Write-up contest entry — feedback welcome.</p>
+        <p class="author">— Leonardo Gomes · <a href="https://github.com/nardogod">github.com/nardogod</a></p>
+      </div>
+    </article>
+    <footer>
+      Also: <a href="../bug-bounty-playbook/">Bug bounty playbook checklist</a>
+    </footer>
+  </div>
+</body>
+</html>

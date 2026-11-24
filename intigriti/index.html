@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="author" content="Leonardo Gomes"/>
+  <meta name="description" content="Intigriti write-ups and a bug bounty checklist by Leonardo Gomes (nardogod)."/>
+  <title>Intigriti — Leonardo Gomes</title>
+  <style>
+    :root {
+      --bg: #0b0b14;
+      --text: #e8e6e1;
+      --muted: #9aa3b2;
+      --dim: #6b7380;
+      --line: #2a2a3d;
+      --accent: #d4a373;
+      --card: #12121f;
+    }
+    * { box-sizing: border-box; }
+    html { color-scheme: dark; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+      font-size: 1rem;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrap {
+      max-width: 40rem;
+      margin: 0 auto;
+      padding: 2rem 1.25rem 4rem;
+    }
+    .kicker {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin: 0 0 0.6rem;
+    }
+    h1 {
+      font-family: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, "Times New Roman", serif;
+      font-size: clamp(1.8rem, 5vw, 2.4rem);
+      line-height: 1.15;
+      font-weight: 700;
+      margin: 0 0 0.6rem;
+    }
+    .lede {
+      color: var(--muted);
+      margin: 0 0 2rem;
+      padding-bottom: 1.4rem;
+      border-bottom: 1px solid var(--line);
+    }
+    ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.85rem;
+    }
+    a.card {
+      display: block;
+      text-decoration: none;
+      color: inherit;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1.05rem 1.15rem 1.1rem;
+      transition: border-color .15s, transform .15s;
+    }
+    a.card:hover { border-color: var(--accent); transform: translateY(-1px); }
+    a.card h2 {
+      margin: 0 0 0.3rem;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text);
+    }
+    a.card p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+    a.card .label {
+      display: inline-block;
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+    footer {
+      margin-top: 2.5rem;
+      font-size: 0.85rem;
+      color: var(--dim);
+    }
+    footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <p class="kicker">nardogod</p>
+    <h1>Intigriti</h1>
+    <p class="lede">Write-up and checklist from accepted Challenge 1126 work.</p>
+    <ul>
+      <li>
+        <a class="card" href="challenge-1126/">
+          <span class="label">Write-up</span>
+          <h2>Challenge 1126 write-up</h2>
+          <p>The “internal-only” protocol that wasn’t: HTTP bridge → signature bypass → RCE.</p>
+        </a>
+      </li>
+      <li>
+        <a class="card" href="bug-bounty-playbook/">
+          <span class="label">Checklist</span>
+          <h2>Bug bounty playbook</h2>
+          <p>Six-phase checkbox playbook for scoped hunting. Progress saves in this browser.</p>
+        </a>
+      </li>
+    </ul>
+    <footer>
+      Leonardo Gomes / <a href="https://github.com/nardogod">nardogod</a>
+    </footer>
+  </div>
+</body>
+</html>
